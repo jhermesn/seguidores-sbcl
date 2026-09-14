@@ -10,51 +10,25 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      CRX_PRIVATE_KEY: ${{ secrets.CRX_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
 
-      # Le os Conventional Commits desde a ultima tag, calcula o semver e cria a tag.
-      # Sem commit feat/fix/perf, new_version sai vazio e os passos seguintes nao rodam.
-      - name: Calcular versao e criar a tag
-        id: tag
+      - id: tag
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: false
 
-      - name: Gravar a versao no manifest
-        if: steps.tag.outputs.new_version != ''
+      - if: steps.tag.outputs.new_version
         env:
           VERSION: ${{ steps.tag.outputs.new_version }}
         run: |
-          jq --arg v "$VERSION" '.version = $v' manifest.json > manifest.tmp
-          mv manifest.tmp manifest.json
+          jq --arg v "$VERSION" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          zip -r seguidores-sbcl.zip manifest.json popup.html popup.css popup.js roster.js builder-check.js icons LICENSE
 
-      - name: Empacotar a extensao
-        if: steps.tag.outputs.new_version != ''
-        run: |
-          mkdir -p dist build
-          cp -r manifest.json popup.html popup.css popup.js roster.js builder-check.js icons README.md LICENSE build/
-          (cd build && zip -qr ../dist/seguidores-sbcl.zip .)
-
-      # npx direto em vez de uma action de terceiro: este e o passo que toca a
-      # chave privada de assinatura, entao quanto menos codigo de fora, melhor.
-      - name: Assinar o CRX
-        if: steps.tag.outputs.new_version != '' && env.CRX_PRIVATE_KEY != ''
-        run: |
-          printf '%s' "$CRX_PRIVATE_KEY" > key.pem
-          npx -y crx3@2.0.0 -p key.pem -o dist/seguidores-sbcl.crx -- build
-          rm -f key.pem
-
-      - name: Publicar a release
-        if: steps.tag.outputs.new_version != ''
+      - if: steps.tag.outputs.new_version
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ steps.tag.outputs.new_tag }}
-          name: ${{ steps.tag.outputs.new_tag }}
           body: ${{ steps.tag.outputs.changelog }}
-          files: dist/*
+          files: seguidores-sbcl.zip

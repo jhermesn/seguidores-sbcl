@@ -1,240 +1,155 @@
 import { fetchRoster } from './roster.js';
 import { runFollowCheck } from './builder-check.js';
 
-const BUILDER_URL = 'https://builder.aws.com/';
-const BUILDER_MATCH = 'https://builder.aws.com/*';
 const CACHE_KEY = 'lastReport';
-
-const runButton = document.getElementById('run');
-const statusLine = document.getElementById('status');
-const results = document.getElementById('results');
-const summary = document.getElementById('summary');
-const warnings = document.getElementById('warnings');
-const filterButtons = [...document.querySelectorAll('[data-filter]')];
-
-let report = null;
-const filters = { followingMe: 'all', notFollowingMe: 'all' };
-
-const SECTIONS = [
-  { key: 'followingMe', list: 'following-me', count: 'count-following-me', open: 'open-following-me', empty: 'Ninguém da lista te segue ainda.' },
-  { key: 'notFollowingMe', list: 'not-following-me', count: 'count-not-following-me', open: 'open-not-following-me', empty: 'Todo mundo da lista já te segue.' },
-];
-
 const PROGRESS = {
   profiles: 'Resolvendo Builder IDs...',
   following: 'Checando quem você já segue...',
   followers: 'Lendo seus seguidores...',
 };
 
+const $ = (selector, root = document) => root.querySelector(selector);
+const runButton = $('#run');
+const groups = [...document.querySelectorAll('.group')];
+const relativeTime = new Intl.RelativeTimeFormat('pt-BR');
+
+let report;
+
 function setStatus(message, isError = false) {
-  statusLine.textContent = message;
-  statusLine.classList.toggle('error', isError);
+  $('#status').textContent = message;
+  $('#status').classList.toggle('error', isError);
 }
 
 function describeAge(savedAt) {
-  const minutes = Math.round((Date.now() - savedAt) / 60000);
-  if (minutes < 1) return 'agora mesmo';
-  if (minutes < 60) return `há ${minutes} min`;
-
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `há ${hours} h`;
-
-  const days = Math.round(hours / 24);
-  return `há ${days} d`;
+  const minutes = Math.round((savedAt - Date.now()) / 60000);
+  if (minutes === 0) return 'agora mesmo';
+  if (minutes > -60) return relativeTime.format(minutes, 'minute');
+  if (minutes > -1440) return relativeTime.format(Math.round(minutes / 60), 'hour');
+  return relativeTime.format(Math.round(minutes / 1440), 'day');
 }
 
-function onProgress(message) {
-  if (message.type !== 'sbcl-progress') return;
-  const base = PROGRESS[message.step] || '';
-  setStatus(message.detail ? `${base} (${message.detail})` : base);
+function onProgress({ type, step, detail }) {
+  if (type === 'progress') setStatus(detail ? `${PROGRESS[step]} (${detail})` : PROGRESS[step]);
 }
 
 async function openBuilderTab() {
-  const [existing] = await chrome.tabs.query({ url: BUILDER_MATCH });
-  if (existing) return { tabId: existing.id, created: false };
+  const [existing] = await chrome.tabs.query({ url: 'https://builder.aws.com/*' });
+  if (existing) return { id: existing.id, created: false };
 
-  const tab = await chrome.tabs.create({ url: BUILDER_URL, active: false });
+  const tab = await chrome.tabs.create({ url: 'https://builder.aws.com/', active: false });
   await new Promise((resolve) => {
-    const onUpdated = (tabId, info) => {
-      if (tabId === tab.id && info.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(onUpdated);
-        resolve();
-      }
-    };
-    chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.tabs.onUpdated.addListener(function onUpdated(tabId, info) {
+      if (tabId !== tab.id || info.status !== 'complete') return;
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      resolve();
+    });
   });
-
-  return { tabId: tab.id, created: true };
+  return { id: tab.id, created: true };
 }
 
-function renderSummary(stats) {
-  summary.replaceChildren(
-    ...[
-      [stats.roster, 'na lista'],
-      [stats.followMe, 'te seguem'],
-      [stats.roster - stats.iFollow, 'falta seguir'],
-    ].map(([value, label]) => {
-      const box = document.createElement('div');
-      box.className = 'stat';
-
-      const number = document.createElement('b');
-      number.textContent = String(value);
-
-      const caption = document.createElement('span');
-      caption.textContent = label;
-
-      box.append(number, caption);
-      return box;
-    })
-  );
+function visiblePeople(group) {
+  const filter = group.dataset.active ?? 'all';
+  return report[group.dataset.key].filter((p) => filter === 'all' || p.iFollow === (filter === 'ok'));
 }
 
-function renderSection(section) {
-  const people = visiblePeople(section.key);
-  const list = document.getElementById(section.list);
-  const openButton = document.getElementById(section.open);
+function renderPerson(person) {
+  const item = $('#person').content.cloneNode(true);
+  if (person.avatar) $('img', item).src = person.avatar;
+  $('strong', item).textContent = person.name;
+  $('.who span', item).textContent = `@${person.alias}`;
+  $('.mark', item).textContent = person.iFollow ? 'OK' : 'X';
+  $('.mark', item).classList.add(person.iFollow ? 'ok' : 'no');
+  $('a', item).href = person.url;
+  return item;
+}
 
-  document.getElementById(section.count).textContent = String(people.length);
-  openButton.textContent = `Abrir todos (${people.length})`;
-  openButton.disabled = people.length === 0;
-  list.replaceChildren();
+function renderGroup(group) {
+  const people = visiblePeople(group);
+  $('.count', group).textContent = people.length;
+  $('.open-all', group).textContent = `Abrir todos (${people.length})`;
+  $('.open-all', group).disabled = people.length === 0;
 
-  if (people.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'empty';
-    empty.textContent = filters[section.key] === 'all' ? section.empty : 'Ninguém neste filtro.';
-    list.append(empty);
+  if (people.length) {
+    $('.people', group).replaceChildren(...people.map(renderPerson));
     return;
   }
-
-  for (const person of people) {
-    const item = document.createElement('li');
-
-    const avatar = document.createElement('img');
-    avatar.alt = '';
-    if (person.avatar.startsWith('https://')) avatar.src = person.avatar;
-
-    const who = document.createElement('div');
-    who.className = 'who';
-
-    const name = document.createElement('strong');
-    name.textContent = person.name;
-
-    const alias = document.createElement('span');
-    alias.textContent = `@${person.alias}`;
-
-    who.append(name, alias);
-
-    const mark = document.createElement('span');
-    mark.className = person.iFollow ? 'mark ok' : 'mark no';
-    mark.textContent = person.iFollow ? 'OK' : 'X';
-    mark.title = person.iFollow ? 'Você segue' : 'Você não segue';
-
-    const link = document.createElement('a');
-    link.href = person.url;
-    link.target = '_blank';
-    link.rel = 'noreferrer';
-    link.textContent = 'Abrir';
-
-    item.append(avatar, who, mark, link);
-    list.append(item);
-  }
-}
-
-function renderWarnings(data, invalidRows) {
-  const notes = [];
-  if (data.failedAliases.length) {
-    notes.push(`Builder IDs que não existem: ${data.failedAliases.join(', ')}`);
-  }
-  if (invalidRows.length) {
-    notes.push(`Linhas da planilha em formato inválido: ${invalidRows.join(', ')}`);
-  }
-  if (data.truncatedFollowers) {
-    notes.push('Lista de seguidores muito longa: resultado parcial.');
-  }
-  warnings.textContent = notes.join(' · ');
+  const empty = document.createElement('li');
+  empty.className = 'empty';
+  empty.textContent = group.dataset.active && group.dataset.active !== 'all' ? 'Ninguém neste filtro.' : group.dataset.empty;
+  $('.people', group).replaceChildren(empty);
 }
 
 function show(data, invalid) {
   report = data;
-  renderSummary(data.stats);
-  for (const section of SECTIONS) renderSection(section);
-  renderWarnings(data, invalid);
-  results.hidden = false;
-}
+  const everyone = [...data.followingMe, ...data.notFollowingMe];
+  $('#stat-roster').textContent = everyone.length;
+  $('#stat-follow-me').textContent = data.followingMe.length;
+  $('#stat-to-follow').textContent = everyone.filter((p) => !p.iFollow).length;
 
-function visiblePeople(key) {
-  const filter = filters[key];
-  return report[key].filter((p) => filter === 'all' || p.iFollow === (filter === 'ok'));
-}
+  groups.forEach(renderGroup);
 
-function setFilter(key, value) {
-  filters[key] = value;
-  for (const button of filterButtons) {
-    if (button.dataset.section === key) button.setAttribute('aria-pressed', String(button.dataset.filter === value));
-  }
-  renderSection(SECTIONS.find((section) => section.key === key));
-}
+  $('#warnings').textContent = [
+    data.failedAliases.length && `Builder IDs que não existem: ${data.failedAliases.join(', ')}`,
+    invalid.length && `Builder IDs cadastrados errado no app: ${invalid.join(', ')}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-function openAll(key) {
-  for (const person of visiblePeople(key)) chrome.tabs.create({ url: person.url, active: false });
-}
-
-async function restoreCache() {
-  const cache = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
-  if (!cache) return;
-
-  show(cache.data, cache.invalid || []);
+  $('#results').hidden = false;
   runButton.textContent = 'Reescanear';
-  setStatus(`@${cache.data.me.alias} · verificado ${describeAge(cache.savedAt)}.`);
 }
 
 async function run() {
   runButton.disabled = true;
-  setStatus('Lendo a planilha...');
-
-  let builderTab = null;
+  setStatus('Lendo a lista de líderes...');
   chrome.runtime.onMessage.addListener(onProgress);
+  let builderTab;
 
   try {
     const { aliases, invalid } = await fetchRoster();
-    if (aliases.length === 0) throw new Error('A planilha não tem nenhum Builder ID válido.');
+    if (!aliases.length) throw new Error('A lista de líderes veio vazia.');
 
-    setStatus(`${aliases.length} SBCLs na lista. Consultando o Builder Center...`);
+    setStatus(`${aliases.length} líderes na lista. Consultando o Builder Center...`);
     builderTab = await openBuilderTab();
 
-    const [injection] = await chrome.scripting.executeScript({
-      target: { tabId: builderTab.tabId },
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: builderTab.id },
       func: runFollowCheck,
       args: [aliases],
     });
+    if (!result) throw new Error('O Builder Center não respondeu. Tente de novo.');
+    if (result.error) throw new Error(result.error);
 
-    const data = injection.result;
-    if (!data) throw new Error('A página do Builder Center não respondeu.');
-    if (!data.ok) {
-      setStatus('Entre na sua conta do Builder Center e tente de novo.', true);
-      return;
-    }
-
-    show(data, invalid);
-    await chrome.storage.local.set({ [CACHE_KEY]: { savedAt: Date.now(), data, invalid } });
-
-    runButton.textContent = 'Reescanear';
-    setStatus(`@${data.me.alias} · verificado agora mesmo.`);
+    show(result, invalid);
+    await chrome.storage.local.set({ [CACHE_KEY]: { savedAt: Date.now(), data: result, invalid } });
+    setStatus(`@${result.me.alias} · verificado agora mesmo.`);
   } catch (error) {
-    setStatus(error.message || 'Falhou. Tente de novo.', true);
+    setStatus(error.message, true);
   } finally {
     chrome.runtime.onMessage.removeListener(onProgress);
-    if (builderTab && builderTab.created) chrome.tabs.remove(builderTab.tabId);
+    if (builderTab?.created) chrome.tabs.remove(builderTab.id);
     runButton.disabled = false;
   }
 }
 
+for (const group of groups) {
+  const buttons = [...group.querySelectorAll('[data-filter]')];
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      group.dataset.active = button.dataset.filter;
+      buttons.forEach((other) => other.setAttribute('aria-pressed', other === button));
+      renderGroup(group);
+    });
+  }
+  $('.open-all', group).addEventListener('click', () => {
+    for (const person of visiblePeople(group)) chrome.tabs.create({ url: person.url, active: false });
+  });
+}
+
 runButton.addEventListener('click', run);
-for (const section of SECTIONS) {
-  document.getElementById(section.open).addEventListener('click', () => openAll(section.key));
+
+const cache = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
+if (cache) {
+  show(cache.data, cache.invalid ?? []);
+  setStatus(`@${cache.data.me.alias} · verificado ${describeAge(cache.savedAt)}.`);
 }
-for (const button of filterButtons) {
-  button.addEventListener('click', () => setFilter(button.dataset.section, button.dataset.filter));
-}
-restoreCache();

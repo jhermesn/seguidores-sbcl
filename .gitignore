@@ -1,6 +1,2 @@
-dist/
-build/
-*.crx
-*.pem
 *.zip
 .DS_Store
