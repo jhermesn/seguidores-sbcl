@@ -108,6 +108,46 @@ button {
   margin: 14px 0 4px;
 }
 
+#toolbar {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0 0;
+}
+
+#filters {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#filters button,
+#open-all {
+  padding: 4px 10px;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+#filters button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+#open-all {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+#open-all:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .stat {
   flex: 1;
   padding: 8px;

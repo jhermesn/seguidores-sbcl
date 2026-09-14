@@ -21,6 +21,15 @@
     <section id="results" hidden>
       <div id="summary"></div>
 
+      <div id="toolbar">
+        <div id="filters" role="group" aria-label="Filtrar">
+          <button type="button" data-filter="all" aria-pressed="true">Todos</button>
+          <button type="button" data-filter="ok" aria-pressed="false">OK</button>
+          <button type="button" data-filter="x" aria-pressed="false">X</button>
+        </div>
+        <button id="open-all" type="button">Abrir todos</button>
+      </div>
+
       <h2>SBCLs que me seguem <span id="count-following-me" class="count"></span></h2>
       <ul id="following-me" class="people"></ul>
 

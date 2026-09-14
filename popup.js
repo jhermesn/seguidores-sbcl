@@ -10,6 +10,11 @@ const statusLine = document.getElementById('status');
 const results = document.getElementById('results');
 const summary = document.getElementById('summary');
 const warnings = document.getElementById('warnings');
+const openAllButton = document.getElementById('open-all');
+const filterButtons = [...document.querySelectorAll('#filters button')];
+
+let report = null;
+let filter = 'all';
 
 const SECTIONS = [
   { key: 'followingMe', list: 'following-me', count: 'count-following-me', empty: 'Ninguém da lista te segue ainda.' },
@@ -93,7 +98,7 @@ function renderSection(section, people) {
   if (people.length === 0) {
     const empty = document.createElement('li');
     empty.className = 'empty';
-    empty.textContent = section.empty;
+    empty.textContent = filter === 'all' ? section.empty : 'Ninguém neste filtro.';
     list.append(empty);
     return;
   }
@@ -147,10 +152,35 @@ function renderWarnings(data, invalidRows) {
 }
 
 function show(data, invalid) {
+  report = data;
   renderSummary(data.stats);
-  for (const section of SECTIONS) renderSection(section, data[section.key]);
+  renderLists();
   renderWarnings(data, invalid);
   results.hidden = false;
+}
+
+function visiblePeople(key) {
+  return report[key].filter((p) => filter === 'all' || p.iFollow === (filter === 'ok'));
+}
+
+function renderLists() {
+  for (const section of SECTIONS) renderSection(section, visiblePeople(section.key));
+
+  const total = SECTIONS.reduce((sum, section) => sum + visiblePeople(section.key).length, 0);
+  openAllButton.textContent = `Abrir todos (${total})`;
+  openAllButton.disabled = total === 0;
+}
+
+function setFilter(value) {
+  filter = value;
+  for (const button of filterButtons) button.setAttribute('aria-pressed', String(button.dataset.filter === value));
+  renderLists();
+}
+
+function openAll() {
+  for (const section of SECTIONS) {
+    for (const person of visiblePeople(section.key)) chrome.tabs.create({ url: person.url, active: false });
+  }
 }
 
 async function restoreCache() {
@@ -204,4 +234,6 @@ async function run() {
 }
 
 runButton.addEventListener('click', run);
+openAllButton.addEventListener('click', openAll);
+for (const button of filterButtons) button.addEventListener('click', () => setFilter(button.dataset.filter));
 restoreCache();
