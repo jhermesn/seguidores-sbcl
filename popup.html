@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Seguidores - SBCL 🇧🇷</title>
+  </head>
+  <body>
+    <header>
+      <h1>Seguidores - SBCL 🇧🇷</h1>
+      <p id="subtitle">Lista lida ao vivo da planilha dos SBCLs.</p>
+    </header>
+
+    <button id="run" type="button">Verificar</button>
+
+    <p id="status" role="status"></p>
+
+    <section id="results" hidden>
+      <div id="summary"></div>
+
+      <h2>SBCLs que me seguem <span id="count-following-me" class="count"></span></h2>
+      <ul id="following-me" class="people"></ul>
+
+      <h2>SBCLs que não me seguem <span id="count-not-following-me" class="count"></span></h2>
+      <ul id="not-following-me" class="people"></ul>
+
+      <p id="legend">OK = você já segue &nbsp;·&nbsp; X = você ainda não segue</p>
+      <p id="warnings"></p>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

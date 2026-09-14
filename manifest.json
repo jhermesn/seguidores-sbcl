@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Seguidores - SBCL 🇧🇷",
+  "version": "1.1.0",
+  "description": "Mostra quais SBCLs da lista voce ainda nao segue e quem ja te seguiu de volta no AWS Builder Center.",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://builder.aws.com/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Seguidores - SBCL 🇧🇷",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  }
+}
