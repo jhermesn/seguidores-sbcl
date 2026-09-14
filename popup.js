@@ -10,15 +10,14 @@ const statusLine = document.getElementById('status');
 const results = document.getElementById('results');
 const summary = document.getElementById('summary');
 const warnings = document.getElementById('warnings');
-const openAllButton = document.getElementById('open-all');
-const filterButtons = [...document.querySelectorAll('#filters button')];
+const filterButtons = [...document.querySelectorAll('[data-filter]')];
 
 let report = null;
-let filter = 'all';
+const filters = { followingMe: 'all', notFollowingMe: 'all' };
 
 const SECTIONS = [
-  { key: 'followingMe', list: 'following-me', count: 'count-following-me', empty: 'Ninguém da lista te segue ainda.' },
-  { key: 'notFollowingMe', list: 'not-following-me', count: 'count-not-following-me', empty: 'Todo mundo da lista já te segue.' },
+  { key: 'followingMe', list: 'following-me', count: 'count-following-me', open: 'open-following-me', empty: 'Ninguém da lista te segue ainda.' },
+  { key: 'notFollowingMe', list: 'not-following-me', count: 'count-not-following-me', open: 'open-not-following-me', empty: 'Todo mundo da lista já te segue.' },
 ];
 
 const PROGRESS = {
@@ -90,15 +89,20 @@ function renderSummary(stats) {
   );
 }
 
-function renderSection(section, people) {
+function renderSection(section) {
+  const people = visiblePeople(section.key);
   const list = document.getElementById(section.list);
+  const openButton = document.getElementById(section.open);
+
   document.getElementById(section.count).textContent = String(people.length);
+  openButton.textContent = `Abrir todos (${people.length})`;
+  openButton.disabled = people.length === 0;
   list.replaceChildren();
 
   if (people.length === 0) {
     const empty = document.createElement('li');
     empty.className = 'empty';
-    empty.textContent = filter === 'all' ? section.empty : 'Ninguém neste filtro.';
+    empty.textContent = filters[section.key] === 'all' ? section.empty : 'Ninguém neste filtro.';
     list.append(empty);
     return;
   }
@@ -154,33 +158,26 @@ function renderWarnings(data, invalidRows) {
 function show(data, invalid) {
   report = data;
   renderSummary(data.stats);
-  renderLists();
+  for (const section of SECTIONS) renderSection(section);
   renderWarnings(data, invalid);
   results.hidden = false;
 }
 
 function visiblePeople(key) {
+  const filter = filters[key];
   return report[key].filter((p) => filter === 'all' || p.iFollow === (filter === 'ok'));
 }
 
-function renderLists() {
-  for (const section of SECTIONS) renderSection(section, visiblePeople(section.key));
-
-  const total = SECTIONS.reduce((sum, section) => sum + visiblePeople(section.key).length, 0);
-  openAllButton.textContent = `Abrir todos (${total})`;
-  openAllButton.disabled = total === 0;
-}
-
-function setFilter(value) {
-  filter = value;
-  for (const button of filterButtons) button.setAttribute('aria-pressed', String(button.dataset.filter === value));
-  renderLists();
-}
-
-function openAll() {
-  for (const section of SECTIONS) {
-    for (const person of visiblePeople(section.key)) chrome.tabs.create({ url: person.url, active: false });
+function setFilter(key, value) {
+  filters[key] = value;
+  for (const button of filterButtons) {
+    if (button.dataset.section === key) button.setAttribute('aria-pressed', String(button.dataset.filter === value));
   }
+  renderSection(SECTIONS.find((section) => section.key === key));
+}
+
+function openAll(key) {
+  for (const person of visiblePeople(key)) chrome.tabs.create({ url: person.url, active: false });
 }
 
 async function restoreCache() {
@@ -234,6 +231,10 @@ async function run() {
 }
 
 runButton.addEventListener('click', run);
-openAllButton.addEventListener('click', openAll);
-for (const button of filterButtons) button.addEventListener('click', () => setFilter(button.dataset.filter));
+for (const section of SECTIONS) {
+  document.getElementById(section.open).addEventListener('click', () => openAll(section.key));
+}
+for (const button of filterButtons) {
+  button.addEventListener('click', () => setFilter(button.dataset.section, button.dataset.filter));
+}
 restoreCache();

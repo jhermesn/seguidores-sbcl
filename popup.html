@@ -21,19 +21,26 @@
     <section id="results" hidden>
       <div id="summary"></div>
 
-      <div id="toolbar">
-        <div id="filters" role="group" aria-label="Filtrar">
-          <button type="button" data-filter="all" aria-pressed="true">Todos</button>
-          <button type="button" data-filter="ok" aria-pressed="false">OK</button>
-          <button type="button" data-filter="x" aria-pressed="false">X</button>
-        </div>
-        <button id="open-all" type="button">Abrir todos</button>
-      </div>
-
       <h2>SBCLs que me seguem <span id="count-following-me" class="count"></span></h2>
+      <div class="toolbar">
+        <div class="filters" role="group" aria-label="Filtrar">
+          <button type="button" data-section="followingMe" data-filter="all" aria-pressed="true">Todos</button>
+          <button type="button" data-section="followingMe" data-filter="ok" aria-pressed="false">OK</button>
+          <button type="button" data-section="followingMe" data-filter="x" aria-pressed="false">X</button>
+        </div>
+        <button id="open-following-me" class="open-all" type="button">Abrir todos</button>
+      </div>
       <ul id="following-me" class="people"></ul>
 
       <h2>SBCLs que não me seguem <span id="count-not-following-me" class="count"></span></h2>
+      <div class="toolbar">
+        <div class="filters" role="group" aria-label="Filtrar">
+          <button type="button" data-section="notFollowingMe" data-filter="all" aria-pressed="true">Todos</button>
+          <button type="button" data-section="notFollowingMe" data-filter="ok" aria-pressed="false">OK</button>
+          <button type="button" data-section="notFollowingMe" data-filter="x" aria-pressed="false">X</button>
+        </div>
+        <button id="open-not-following-me" class="open-all" type="button">Abrir todos</button>
+      </div>
       <ul id="not-following-me" class="people"></ul>
 
       <p id="legend">OK = você já segue &nbsp;·&nbsp; X = você ainda não segue</p>
