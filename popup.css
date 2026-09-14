@@ -58,10 +58,17 @@ h2 {
   font-size: 11px;
 }
 
-#subtitle {
+#credits {
   margin: 2px 0 12px;
   color: var(--muted);
   font-size: 12px;
+}
+
+#credits a {
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
 }
 
 button {
