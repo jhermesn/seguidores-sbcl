@@ -153,3 +153,8 @@ if (cache) {
   show(cache.data, cache.invalid ?? []);
   setStatus(`@${cache.data.me.alias} · verificado ${describeAge(cache.savedAt)}.`);
 }
+
+import('./teste.js')
+  .then(({ setup }) => setup({ setStatus, openBuilderTab, report: () => report }))
+  .catch(() => {});
+
