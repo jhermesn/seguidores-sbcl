@@ -2,10 +2,13 @@ import { fetchRoster } from './roster.js';
 import { runFollowCheck } from './builder-check.js';
 
 const CACHE_KEY = 'lastReport';
+const TOP_SIZE = 10;
+const PAGE_SIZE = 25;
 const PROGRESS = {
   profiles: 'Resolvendo Builder IDs...',
   following: 'Checando quem você já segue...',
   followers: 'Lendo seus seguidores...',
+  counts: 'Contando seguidores de cada líder...',
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -52,25 +55,61 @@ function visiblePeople(group) {
   return report[group.dataset.key].filter((p) => filter === 'all' || p.iFollow === (filter === 'ok'));
 }
 
+function pageOf(group) {
+  const people = visiblePeople(group);
+  const pages = Math.max(1, Math.ceil(people.length / PAGE_SIZE));
+  const page = Math.min(Number(group.dataset.page ?? 0), pages - 1);
+  return { people, pages, page, slice: people.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) };
+}
+
+function turnPage(group, step) {
+  const { page, pages } = pageOf(group);
+  group.dataset.page = Math.min(Math.max(page + step, 0), pages - 1);
+  renderGroup(group);
+}
+
+function describePerson(person) {
+  return `@${person.alias} - ${person.followers} seguidores, ${person.following} seguindo`;
+}
+
 function renderPerson(person) {
   const item = $('#person').content.cloneNode(true);
   if (person.avatar) $('img', item).src = person.avatar;
   $('strong', item).textContent = person.name;
-  $('.who span', item).textContent = `@${person.alias}`;
-  $('.mark', item).textContent = person.iFollow ? 'OK' : 'X';
-  $('.mark', item).classList.add(person.iFollow ? 'ok' : 'no');
+  $('.who span', item).textContent = describePerson(person);
   $('a', item).href = person.url;
+
+  const mark = $('.mark', item);
+  const isMe = person.userId === report.me.userId;
+  mark.textContent = isMe ? 'você' : person.iFollow ? 'OK' : 'X';
+  mark.classList.add(isMe || person.iFollow ? 'ok' : 'no');
   return item;
 }
 
-function renderGroup(group) {
-  const people = visiblePeople(group);
-  $('.count', group).textContent = people.length;
-  $('.open-all', group).textContent = `Abrir todos (${people.length})`;
-  $('.open-all', group).disabled = people.length === 0;
+function copyGroup(group) {
+  const title = $('h2', group).firstChild.textContent.trim();
+  const lines = visiblePeople(group).map(describePerson);
+  navigator.clipboard.writeText([title, ...lines].join('\n'));
+  setStatus(`${lines.length} copiados de "${title}".`);
+}
 
-  if (people.length) {
-    $('.people', group).replaceChildren(...people.map(renderPerson));
+function renderGroup(group) {
+  const { people, pages, page, slice } = pageOf(group);
+  const openPage = $('.open-all', group);
+
+  $('.count', group).textContent = people.length;
+  $('.copy', group).disabled = people.length === 0;
+
+  if (openPage) {
+    openPage.textContent = `Abrir página (${slice.length})`;
+    openPage.disabled = slice.length === 0;
+    $('.page', group).textContent = `${page + 1}/${pages}`;
+    $('.prev', group).disabled = page === 0;
+    $('.next', group).disabled = page === pages - 1;
+  }
+
+  if (slice.length) {
+    $('.people', group).replaceChildren(...slice.map(renderPerson));
     return;
   }
   const empty = document.createElement('li');
@@ -82,6 +121,7 @@ function renderGroup(group) {
 function show(data, invalid) {
   report = data;
   const everyone = [...data.followingMe, ...data.notFollowingMe];
+  data.top = [data.me, ...everyone].sort((a, b) => b.followers - a.followers).slice(0, TOP_SIZE);
   $('#stat-roster').textContent = everyone.length;
   $('#stat-follow-me').textContent = data.followingMe.length;
   $('#stat-to-follow').textContent = everyone.filter((p) => !p.iFollow).length;
@@ -137,24 +177,40 @@ for (const group of groups) {
   for (const button of buttons) {
     button.addEventListener('click', () => {
       group.dataset.active = button.dataset.filter;
+      group.dataset.page = 0;
       buttons.forEach((other) => other.setAttribute('aria-pressed', other === button));
       renderGroup(group);
     });
   }
-  $('.open-all', group).addEventListener('click', () => {
-    for (const person of visiblePeople(group)) chrome.tabs.create({ url: person.url, active: false });
+  $('.open-all', group)?.addEventListener('click', () => {
+    for (const person of pageOf(group).slice) chrome.tabs.create({ url: person.url, active: false });
   });
+  $('.prev', group)?.addEventListener('click', () => turnPage(group, -1));
+  $('.next', group)?.addEventListener('click', () => turnPage(group, 1));
+  $('.copy', group).addEventListener('click', () => copyGroup(group));
 }
 
 runButton.addEventListener('click', run);
 
+// A barra de rolagem some 1s depois do ultimo scroll.
+document.addEventListener(
+  'scroll',
+  ({ target }) => {
+    if (!target.classList?.contains('people')) return;
+    target.classList.add('scrolling');
+    clearTimeout(target.hideScrollbar);
+    target.hideScrollbar = setTimeout(() => target.classList.remove('scrolling'), 1000);
+  },
+  true
+);
+
 const cache = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
-if (cache) {
+if (cache?.data.me.followers !== undefined) {
   show(cache.data, cache.invalid ?? []);
   setStatus(`@${cache.data.me.alias} · verificado ${describeAge(cache.savedAt)}.`);
 }
 
 import('./teste.js')
-  .then(({ setup }) => setup({ setStatus, openBuilderTab, report: () => report }))
+  .then(({ setup }) => setup({ setStatus, report: () => report }))
   .catch(() => {});
 

@@ -14,9 +14,17 @@ export async function runFollowCheck(aliases) {
     return response.json();
   }
 
-  const me = await call('/ums/profile/get', {}).catch(() => null);
-  if (!me) return { error: 'Entre na sua conta do Builder Center e tente de novo.' };
-  const { alias: myAlias, builderProfileId: myId } = me.profile.basicInfo;
+  const toPerson = ({ alias, name, avatar, builderProfileId }) => ({
+    alias,
+    name: name || alias,
+    avatar,
+    userId: builderProfileId,
+    url: `https://builder.aws.com/community/@${alias}`,
+  });
+
+  const profile = await call('/ums/profile/get', {}).catch(() => null);
+  if (!profile) return { error: 'Entre na sua conta do Builder Center e tente de novo.' };
+  const me = toPerson(profile.profile.basicInfo);
 
   progress('profiles');
   const people = [];
@@ -25,14 +33,7 @@ export async function runFollowCheck(aliases) {
     const result = await call('/ums/profiles/aliases', { aliases: aliases.slice(i, i + 100) });
     failedAliases.push(...result.failedAliases);
     for (const { basicInfo } of result.profiles) {
-      if (basicInfo.alias === myAlias) continue;
-      people.push({
-        alias: basicInfo.alias,
-        name: basicInfo.name || basicInfo.alias,
-        avatar: basicInfo.avatar,
-        userId: basicInfo.builderProfileId,
-        url: `https://builder.aws.com/community/@${basicInfo.alias}`,
-      });
+      if (basicInfo.alias !== me.alias) people.push(toPerson(basicInfo));
     }
   }
 
@@ -46,11 +47,26 @@ export async function runFollowCheck(aliases) {
   const followers = new Set();
   let nextToken;
   do {
-    const result = await call('/ums/listUserFollowers', { userId: myId, maxResults: 50, nextToken });
+    const result = await call('/ums/listUserFollowers', { userId: me.userId, maxResults: 50, nextToken });
     result.userFollowers.forEach((follower) => followers.add(follower.basicInfo.builderProfileId));
     nextToken = result.nextToken;
     progress('followers', followers.size);
   } while (nextToken);
+
+  const everyone = [me, ...people];
+  for (let i = 0; i < everyone.length; i += 10) {
+    await Promise.all(
+      everyone.slice(i, i + 10).map(async (person) => {
+        const [followersCount, followingCount] = await Promise.all([
+          call('/ums/getUserFollowersCount', { userId: person.userId }),
+          call('/ums/getUserFollowingCount', { userId: person.userId }),
+        ]);
+        person.followers = followersCount.followersCount;
+        person.following = followingCount.followingCount;
+      })
+    );
+    progress('counts', `${Math.min(i + 10, everyone.length)}/${everyone.length}`);
+  }
 
   for (const person of people) {
     person.iFollow = followed.has(person.userId);
@@ -58,7 +74,7 @@ export async function runFollowCheck(aliases) {
   }
 
   return {
-    me: { alias: myAlias },
+    me,
     followingMe: people.filter((p) => p.followsMe),
     notFollowingMe: people.filter((p) => !p.followsMe),
     failedAliases,

@@ -27,7 +27,7 @@
 }
 
 body {
-  width: 380px;
+  width: 640px;
   margin: 0;
   padding: 16px;
   background: var(--bg);
@@ -74,6 +74,47 @@ h2 {
 button {
   font: inherit;
   cursor: pointer;
+}
+
+button,
+.people a,
+#credits a {
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+button:not(:disabled):active,
+.people a:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible,
+.people a:focus-visible,
+#credits a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.open-all:not(:disabled):hover,
+.copy:not(:disabled):hover,
+.pager button:not(:disabled):hover,
+.filters button:not([aria-pressed='true']):hover,
+.people a:hover {
+  background: var(--card);
+  border-color: var(--muted);
+}
+
+#run:not(:disabled):hover,
+.filters button[aria-pressed='true']:hover {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+}
+
+#run:not(:disabled):active,
+.filters button[aria-pressed='true']:active {
+  background: color-mix(in srgb, var(--accent) 85%, black);
+}
+
+#credits a:hover {
+  color: var(--accent);
 }
 
 #run {
@@ -167,11 +208,18 @@ button {
 }
 
 .people {
-  max-height: 220px;
+  max-height: 340px;
   margin: 0;
   padding: 0;
   overflow-y: auto;
   list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s;
+}
+
+.people.scrolling {
+  scrollbar-color: var(--muted) transparent;
 }
 
 .people li {
@@ -247,4 +295,40 @@ button {
   margin: 10px 0 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.pager {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pager button {
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.copy {
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.copy:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
