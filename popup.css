@@ -315,6 +315,18 @@ button:focus-visible,
   font-size: 11px;
 }
 
+.diff {
+  font-weight: 700;
+}
+
+.diff.up {
+  color: var(--ok);
+}
+
+.diff.down {
+  color: var(--no);
+}
+
 .mark {
   min-width: 28px;
   padding: 2px 7px;

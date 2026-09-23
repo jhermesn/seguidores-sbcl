@@ -17,6 +17,7 @@ const groups = [...document.querySelectorAll('.group')];
 const relativeTime = new Intl.RelativeTimeFormat('pt-BR');
 
 let report;
+let savedAt;
 let busy = false;
 
 // Um scan de cada vez: o popup e o painel de testes compartilham esta trava.
@@ -76,15 +77,53 @@ function turnPage(group, step) {
   renderGroup(group);
 }
 
+const everyoneIn = (data) => [data.me, ...data.followingMe, ...data.notFollowingMe];
+
+// Vazio quando a metrica nao mudou ou quando nao ha scan anterior pra comparar.
+function diffTag(delta) {
+  if (!delta) return '';
+  const tag = document.createElement('span');
+  tag.className = delta > 0 ? 'diff up' : 'diff down';
+  tag.textContent = delta > 0 ? ` (+${delta})` : ` (${delta})`;
+  return tag;
+}
+
 function describePerson(person) {
-  return `@${person.alias} - ${person.followers} seguidores, ${person.following} seguindo`;
+  return [
+    `@${person.alias} - ${person.followers} seguidores`,
+    diffTag(person.diffFollowers),
+    `, ${person.following} seguindo`,
+    diffTag(person.diffFollowing),
+  ];
+}
+
+const plainText = (parts) => parts.map((part) => part.textContent ?? part).join('');
+
+// Quanto cada metrica andou desde o scan anterior. Fica gravado junto do
+// relatorio, entao o popup reaberto mostra a mesma variacao.
+function diffAgainstLastScan(fresh, previous, previousSavedAt) {
+  if (!previous) return;
+
+  const before = new Map(everyoneIn(previous).map((person) => [person.userId, person]));
+  for (const person of everyoneIn(fresh)) {
+    const old = before.get(person.userId);
+    if (!old) continue;
+    person.diffFollowers = person.followers - old.followers;
+    person.diffFollowing = person.following - old.following;
+  }
+  fresh.comparedTo = previousSavedAt;
+}
+
+function describeScan(data, when) {
+  const variation = data.comparedTo ? ` · mudanças desde o scan anterior (${describeAge(data.comparedTo)})` : '';
+  return `@${data.me.alias} · verificado ${describeAge(when)}${variation}.`;
 }
 
 function renderPerson(person) {
   const item = $('#person').content.cloneNode(true);
   if (person.avatar) $('img', item).src = person.avatar;
   $('strong', item).textContent = person.name;
-  $('.who span', item).textContent = describePerson(person);
+  $('.who span', item).append(...describePerson(person));
   $('a', item).href = person.url;
 
   const mark = $('.mark', item);
@@ -96,7 +135,7 @@ function renderPerson(person) {
 
 function copyGroup(group) {
   const title = $('h2', group).firstChild.textContent.trim();
-  const lines = visiblePeople(group).map(describePerson);
+  const lines = visiblePeople(group).map((person) => plainText(describePerson(person)));
   navigator.clipboard.writeText([title, ...lines].join('\n'));
   setStatus(`${lines.length} copiados de "${title}".`);
 }
@@ -169,9 +208,11 @@ async function run() {
     if (!result) throw new Error('O Builder Center não respondeu. Tente de novo.');
     if (result.error) throw new Error(result.error);
 
+    diffAgainstLastScan(result, report, savedAt);
+    savedAt = Date.now();
     show(result, invalid);
-    await chrome.storage.local.set({ [CACHE_KEY]: { savedAt: Date.now(), data: result, invalid } });
-    setStatus(`@${result.me.alias} · verificado agora mesmo.`);
+    await chrome.storage.local.set({ [CACHE_KEY]: { savedAt, data: result, invalid } });
+    setStatus(describeScan(result, savedAt));
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -215,8 +256,9 @@ document.addEventListener(
 
 const cache = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
 if (cache?.data.me.followers !== undefined) {
+  savedAt = cache.savedAt;
   show(cache.data, cache.invalid ?? []);
-  setStatus(`@${cache.data.me.alias} · verificado ${describeAge(cache.savedAt)}.`);
+  setStatus(describeScan(cache.data, savedAt));
 }
 
 import('./teste.js')
