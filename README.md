@@ -11,6 +11,8 @@ Clique em **Verificar** e veja duas listas, cada uma com filtro `Todos / OK / X`
 
 A lista de líderes vem da página [Siga os outros líderes](https://www.lideresestudantis.app/seguir) a cada verificação. O último resultado fica salvo no navegador.
 
+Depois da primeira verificação, a extensão também marca `SBCL` ao lado de cada líder dentro do próprio Builder Center. Junto com a [Follows You](https://github.com/jhermesn/builder-center-follows-you), dá para ver quem é líder e quem já te segue na mesma linha.
+
 ## Instalar
 
 1. Baixe `seguidores-sbcl.zip` da [última release](../../releases/latest) e descompacte.
