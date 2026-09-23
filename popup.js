@@ -17,6 +17,14 @@ const groups = [...document.querySelectorAll('.group')];
 const relativeTime = new Intl.RelativeTimeFormat('pt-BR');
 
 let report;
+let busy = false;
+
+// Um scan de cada vez: o popup e o painel de testes compartilham esta trava.
+function setBusy(on) {
+  busy = on;
+  runButton.disabled = on;
+  for (const button of document.querySelectorAll('.scan')) button.disabled = on;
+}
 
 function setStatus(message, isError = false) {
   $('#status').textContent = message;
@@ -101,7 +109,7 @@ function renderGroup(group) {
   $('.copy', group).disabled = people.length === 0;
 
   if (openPage) {
-    openPage.textContent = `Abrir página (${slice.length})`;
+    $('.badge', openPage).textContent = slice.length;
     openPage.disabled = slice.length === 0;
     $('.page', group).textContent = `${page + 1}/${pages}`;
     $('.prev', group).disabled = page === 0;
@@ -140,7 +148,8 @@ function show(data, invalid) {
 }
 
 async function run() {
-  runButton.disabled = true;
+  if (busy) return;
+  setBusy(true);
   setStatus('Lendo a lista de líderes...');
   chrome.runtime.onMessage.addListener(onProgress);
   let builderTab;
@@ -168,7 +177,7 @@ async function run() {
   } finally {
     chrome.runtime.onMessage.removeListener(onProgress);
     if (builderTab?.created) chrome.tabs.remove(builderTab.id);
-    runButton.disabled = false;
+    setBusy(false);
   }
 }
 
@@ -211,6 +220,6 @@ if (cache?.data.me.followers !== undefined) {
 }
 
 import('./teste.js')
-  .then(({ setup }) => setup({ setStatus, report: () => report }))
+  .then(({ setup }) => setup({ setStatus, openBuilderTab, report: () => report, setBusy, isBusy: () => busy }))
   .catch(() => {});
 

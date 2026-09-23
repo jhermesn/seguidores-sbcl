@@ -7,14 +7,16 @@
   </head>
   <body>
     <header>
-      <h1>Seguidores - SBCL 🇧🇷</h1>
-      <p id="credits">
-        Desenvolvido por
-        <a href="https://builder.aws.com/community/@jhermesn" target="_blank" rel="noreferrer">Jorge Hermes</a>
-      </p>
+      <div>
+        <h1>Seguidores - SBCL 🇧🇷</h1>
+        <p id="credits">
+          Desenvolvido por
+          <a href="https://builder.aws.com/community/@jhermesn" target="_blank" rel="noreferrer">Jorge Hermes</a>
+        </p>
+      </div>
+      <button id="run" type="button">Verificar</button>
     </header>
 
-    <button id="run" type="button">Verificar</button>
     <p id="status" role="status"></p>
 
     <section id="results" hidden>
@@ -33,12 +35,21 @@
             <button type="button" data-filter="x" aria-pressed="false">X</button>
           </div>
           <div class="pager">
-            <button class="prev" type="button" aria-label="Página anterior">‹</button>
+            <button class="icon prev" type="button" aria-label="Página anterior">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg>
+            </button>
             <span class="page"></span>
-            <button class="next" type="button" aria-label="Próxima página">›</button>
+            <button class="icon next" type="button" aria-label="Próxima página">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+            </button>
           </div>
-          <button class="open-all" type="button"></button>
-          <button class="copy" type="button">Copiar</button>
+          <button class="icon open-all" type="button" title="Abrir a página atual em abas" aria-label="Abrir a página atual em abas">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2h5v5M14 2 7 9M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5" /></svg>
+            <span class="badge"></span>
+          </button>
+          <button class="icon copy" type="button" title="Copiar a lista" aria-label="Copiar a lista">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="9" rx="1.5" /><path d="M10.5 3.5v-1a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1V10a1 1 0 0 0 1 1h1" /></svg>
+          </button>
         </div>
         <ul class="people"></ul>
       </div>
@@ -52,21 +63,32 @@
             <button type="button" data-filter="x" aria-pressed="false">X</button>
           </div>
           <div class="pager">
-            <button class="prev" type="button" aria-label="Página anterior">‹</button>
+            <button class="icon prev" type="button" aria-label="Página anterior">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg>
+            </button>
             <span class="page"></span>
-            <button class="next" type="button" aria-label="Próxima página">›</button>
+            <button class="icon next" type="button" aria-label="Próxima página">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+            </button>
           </div>
-          <button class="open-all" type="button"></button>
-          <button class="copy" type="button">Copiar</button>
+          <button class="icon open-all" type="button" title="Abrir a página atual em abas" aria-label="Abrir a página atual em abas">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2h5v5M14 2 7 9M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5" /></svg>
+            <span class="badge"></span>
+          </button>
+          <button class="icon copy" type="button" title="Copiar a lista" aria-label="Copiar a lista">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="9" rx="1.5" /><path d="M10.5 3.5v-1a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1V10a1 1 0 0 0 1 1h1" /></svg>
+          </button>
         </div>
         <ul class="people"></ul>
       </div>
 
       <div class="group" data-key="top" data-empty="Sem dados de seguidores.">
-        <h2>Top seguidores <span class="count"></span></h2>
-        <div class="toolbar">
-          <button class="copy" type="button">Copiar</button>
-        </div>
+        <h2>
+          Top seguidores <span class="count"></span>
+          <button class="icon copy" type="button" title="Copiar a lista" aria-label="Copiar a lista" style="margin-left: auto">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="9" rx="1.5" /><path d="M10.5 3.5v-1a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1V10a1 1 0 0 0 1 1h1" /></svg>
+          </button>
+        </h2>
         <ul class="people"></ul>
       </div>
 
@@ -79,7 +101,9 @@
         <img alt="" />
         <div class="who"><strong></strong><span></span></div>
         <span class="mark"></span>
-        <a target="_blank" rel="noreferrer">Abrir</a>
+        <a target="_blank" rel="noreferrer" title="Abrir perfil" aria-label="Abrir perfil">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2h5v5M14 2 7 9M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5" /></svg>
+        </a>
       </li>
     </template>
 
